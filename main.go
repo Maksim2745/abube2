@@ -7,72 +7,81 @@ import (
 	tls "saper/tools"
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
-
+// go build -ldflags="-H=windowsgui -s -w" -tags static -o Saper.exe
 func main() {
+	// X,Y := 20,20
+	// SLOZH := 7
+	// xrayfl := false
+	
+	// if !tls.MainMenu() {return}
+
+	q,xrayfl,SLOZH,X,Y := tls.MainMenu()
+
+	if !q {return}
+	
 	score := 0
-	X,Y := 20,20
-	SLOZH := 7
-	MAXDIST := 3
 	sp := 21
 	bg := rl.Gray
 	loosefl := false
+	W := int32(10+sp*X )
+	H := int32(25+sp*Y)
 
 	btns := make([][]tls.Btn,Y) 
+	//rasstanovka min + init polya
 	for i := 0;i<Y;i++ {
 		btns = append(btns, make([]tls.Btn,X))
 		for j := 0;j<X;j++ {
-			if rand.Int()%SLOZH == 0 {
-				btns[i] = append(btns[i], tls.Btn{X:int32(5+j*sp),Y:int32(20+i*sp),Txt:"*"})
+			if rand.Intn(SLOZH) == 0 {
+				btns[i] = append(btns[i], tls.NewBtn(5+j*sp,20+i*sp,"*"))
 			} else {
-				btns[i] = append(btns[i], tls.Btn{X:int32(5+j*sp),Y:int32(20+i*sp),Txt:""})
+				btns[i] = append(btns[i], tls.NewBtn(5+j*sp,20+i*sp,""))
 			}
 		}
 	}
+	// rasstanovka ciphor
 	for i := 0;i<Y;i++ {
 		for j := 0;j<X;j++ {
 			if btns[i][j].Txt == "*" {continue}
-			btns[i][j].Txt = fmt.Sprintf("%d",tls.ParseBtn(j,i,&btns))
+			txt := tls.ParseBtn(j,i,&btns)
+			if (txt == "0") {btns[i][j].Txt = ""} else {btns[i][j].Txt = txt}
 		}
 	}
 
 	rl.SetConfigFlags(rl.FlagWindowTopmost)
-	rl.InitWindow(428,440,"Saper")
+	rl.InitWindow(W,H,"Saper")
 	rl.SetTargetFPS(30)
-	rl.InitAudioDevice()
 	rl.SetWindowIcon(*rl.LoadImage("icon.png"))
+
+	rl.InitAudioDevice()
+	scissors := rl.LoadSound("scissors.mp3")
+	mine := rl.LoadSound("mine.mp3")
+	defer rl.UnloadSound(scissors)
+	defer rl.UnloadSound(mine)
+
 	for !rl.WindowShouldClose() {
 		rl.BeginDrawing()
 
-		if loosefl {
-			rl.PlaySound(rl.LoadSound("mine.mp3"))
-			bg = rl.Red
-			rl.ClearBackground(bg)
-			for i := 0;i<Y;i++ {
-				for j := 0;j<X;j++ {
-					btns[i][j].DrBtn()
-				}
-			}
-			rl.EndDrawing()
-			rl.WaitTime(2)
-			rl.CloseAudioDevice()
-			rl.CloseWindow()
-		}
-
 		rl.ClearBackground(bg)
-		rl.DrawText(fmt.Sprint(score),200,2,20,rl.Black)
+		//text
+		rl.DrawText("v2.0",5,2,10,rl.Black)
+		rl.DrawText("score: "+fmt.Sprint(score),W/2-30,2,20,rl.Black)
+		rl.DrawText(fmt.Sprintf("%d:%d",X,Y),W-30,2,10,rl.Black)
 
+		//otrisovka polya
 		for i := 0;i<Y;i++ {
 			for j := 0;j<X;j++ {
-				btns[i][j].DrBtn()
+					btns[i][j].Dr(xrayfl)
 			}
 		}
+
+		//obrabotka nazhatiy
 		for i := 0;i<Y;i++ {
 			for j := 0;j<X;j++ {
 				if btns[i][j].IsCL() {
-					if btns[i][j].Txt == "*" {loosefl = true}
-					if !btns[i][j].IsOpen {score++}
-					if score == 1 {tls.OpenFirst(0,MAXDIST,j,i,&btns);continue}
-					btns[i][j].IsOpen = true
+					if score == 0 && !btns[i][j].IsFlagged {if tls.ParseBtn(j,i,&btns) != "0" {btns[i][j].Txt = tls.ParseBtn(j,i,&btns)} else {btns[i][j].Txt = ""}}
+					if btns[i][j].Txt == "*" && !btns[i][j].IsFlagged {loosefl = true}
+					if btns[i][j].Txt == "" {tls.OpenZero(j,i,&btns);rl.PlaySound(scissors);continue}
+					if !btns[i][j].IsOpen && !btns[i][j].IsFlagged {score++;btns[i][j].IsOpen = true;rl.PlaySound(scissors)}
 				}
 				
 				if btns[i][j].IsFl() {
@@ -80,6 +89,22 @@ func main() {
 					if btns[i][j].IsFlagged {btns[i][j].IsFlagged = false}
 				}
 			}
+		}
+
+		// obrabotka smerty
+		if loosefl {
+			rl.PlaySound(mine)
+			bg = rl.Red
+			rl.ClearBackground(bg)
+			for i := 0;i<Y;i++ {
+				for j := 0;j<X;j++ {
+					btns[i][j].Dr(xrayfl)
+				}
+			}
+			rl.EndDrawing()
+			rl.WaitTime(2)
+			rl.CloseAudioDevice()
+			rl.CloseWindow()
 		}
 
 		rl.EndDrawing()
