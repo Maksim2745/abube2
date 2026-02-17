@@ -13,7 +13,7 @@ func main() {
 	if !q {return}
 	
 	score := 0
-	sp := 22
+	sp := 22 // 21 ili 20 chtob ne bilo vidno fona
 	bg := rl.Gray
 	loosefl := false
 	winfl := false
